@@ -20,6 +20,26 @@ jobs:
     permissions:
       contents: read
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: bank_appointments
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d bank_appointments"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_USERNAME: ci_user
+      DB_PASSWORD: ci_password
+
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 17
