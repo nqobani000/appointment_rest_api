@@ -3,6 +3,7 @@ package com.appointment.api.services.dao;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -12,7 +13,6 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 public class Service {
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

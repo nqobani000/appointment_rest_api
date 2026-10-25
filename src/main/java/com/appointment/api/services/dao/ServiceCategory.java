@@ -9,7 +9,6 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 public class ServiceCategory {
-
     @Id
     @Column(name = "code", length = 40, nullable = false, updatable = false)
     private String code;
