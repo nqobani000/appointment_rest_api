@@ -8,6 +8,7 @@ import com.appointment.api.branches.repository.BranchRepository;
 import com.appointment.api.commons.geo.GeoDistance;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BranchServiceImpl implements BranchService {
@@ -70,16 +72,23 @@ public class BranchServiceImpl implements BranchService {
         Double longitude = criteria.longitude();
 
         if ((latitude == null) != (longitude == null)) {
+            log.error("Latitude and longitude must be provided together. Latitude: {}, Longitude: {}", latitude, longitude);
             throw new InvalidArgumentException("Latitude and longitude must be provided together.");
         }
         if (latitude != null && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90)) {
+            log.error("Latitude must be between -90 and 90. Provided: {}", latitude);
             throw new InvalidArgumentException("Latitude must be between -90 and 90.");
         }
         if (longitude != null && (!Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+            log.error("Longitude must be between -180 and 180. Provided: {}", longitude);
             throw new InvalidArgumentException("Longitude must be between -180 and 180.");
         }
-        if (criteria.search() != null && criteria.search().trim().length() > MAX_SEARCH_LENGTH) {
-            throw new InvalidArgumentException("Search must be at most " + MAX_SEARCH_LENGTH + " characters.");
+        if (criteria.search() != null) {
+            int searchLength = criteria.search().trim().length();
+            if (searchLength > MAX_SEARCH_LENGTH) {
+                log.error("Search must be at most {} characters. Provided: {}", MAX_SEARCH_LENGTH, searchLength);
+                throw new InvalidArgumentException("Search must be at most " + MAX_SEARCH_LENGTH + " characters.");
+            }
         }
     }
 
