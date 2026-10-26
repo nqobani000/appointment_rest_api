@@ -1,5 +1,7 @@
 package com.appointment.api.services.service;
 
+import com.appointment.api.cache.CacheNames;
+import org.springframework.cache.annotation.Cacheable;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import com.appointment.api.exceptions.ServiceNotFoundException;
 import com.appointment.api.services.dto.ServiceResponse;
@@ -27,6 +29,11 @@ public class ServicesImpl implements Services {
 
 
     @Override
+    @Cacheable(
+            cacheNames = CacheNames.SERVICES,
+            key = "@serviceCacheKeys.listKey(#criteria, #pageable)",
+            condition = "@serviceCacheKeys.isCacheable(#criteria, #pageable)"
+    )
     public ServiceResponsePage getAllActiveServices(ServiceSearchCriteria criteria, Pageable pageable) {
 
         String filter = getFilter(criteria);
@@ -55,6 +62,10 @@ public class ServicesImpl implements Services {
     }
 
     @Override
+    @Cacheable(
+            cacheNames = CacheNames.SERVICE_BY_ID,
+            key = "#serviceId"
+    )
     public ServiceResponse getActiveServiceById(String serviceId) {
         UUID id = resolveUUID(serviceId);
         return servicesRepository.findActiveServiceById(id)
