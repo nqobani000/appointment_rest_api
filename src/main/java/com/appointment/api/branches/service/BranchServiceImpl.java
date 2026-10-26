@@ -79,21 +79,17 @@ public class BranchServiceImpl implements BranchService {
         Double longitude = criteria.longitude();
 
         if ((latitude == null) != (longitude == null)) {
-            log.error("Latitude and longitude must be provided together. Latitude: {}, Longitude: {}", latitude, longitude);
             throw new InvalidArgumentException("Latitude and longitude must be provided together.");
         }
         if (latitude != null && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90)) {
-            log.error("Latitude must be between -90 and 90. Provided: {}", latitude);
             throw new InvalidArgumentException("Latitude must be between -90 and 90.");
         }
         if (longitude != null && (!Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
-            log.error("Longitude must be between -180 and 180. Provided: {}", longitude);
             throw new InvalidArgumentException("Longitude must be between -180 and 180.");
         }
         if (criteria.search() != null) {
             int searchLength = criteria.search().trim().length();
             if (searchLength > MAX_SEARCH_LENGTH) {
-                log.error("Search must be at most {} characters. Provided: {}", MAX_SEARCH_LENGTH, searchLength);
                 throw new InvalidArgumentException("Search must be at most " + MAX_SEARCH_LENGTH + " characters.");
             }
         }
