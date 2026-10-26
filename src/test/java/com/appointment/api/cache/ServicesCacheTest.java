@@ -39,7 +39,7 @@ class ServicesCacheTest {
     static final AtomicLong NANOS = new AtomicLong();
 
     @Configuration
-    @Import({CacheConfig.class, ServiceCacheKeys.class, CacheStartupCleaner.class, ServicesImpl.class})
+    @Import({CacheConfig.class, CacheKeySupport.class, ServiceCacheKeys.class, CacheStartupCleaner.class, ServicesImpl.class})
     static class TestConfig {
         @Bean
         ServicesRepository servicesRepository() {

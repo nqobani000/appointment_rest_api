@@ -5,29 +5,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.Locale;
-
 /** Key builder and bounding rules for the services caches; referenced from SpEL as @serviceCacheKeys. */
 @Component("serviceCacheKeys")
 @RequiredArgsConstructor
 public class ServiceCacheKeys {
 
-    private final CacheProperties properties;
+    private final CacheKeySupport support;
 
     public String listKey(ServiceSearchCriteria criteria, Pageable pageable) {
-        return normalizedFilter(criteria) + "|" + pageable.getPageNumber() + "|"
-                + pageable.getPageSize() + "|" + pageable.getSort();
+        return support.pageKey(support.normalize(search(criteria)), pageable) + "|" + pageable.getSort();
     }
 
     public boolean isCacheable(ServiceSearchCriteria criteria, Pageable pageable) {
-        return pageable.isPaged()
-                && normalizedFilter(criteria).length() <= properties.getMaxKeyLength()
-                && pageable.getPageSize() <= properties.getMaxPageSize()
-                && pageable.getPageNumber() <= properties.getMaxPageNumber();
+        return support.withinBounds(support.normalize(search(criteria)), pageable);
     }
-/**/
-    private static String normalizedFilter(ServiceSearchCriteria criteria) {
-        if (criteria == null || criteria.search() == null) return "";
-        return criteria.search().trim().toLowerCase(Locale.ROOT);
+
+    private static String search(ServiceSearchCriteria criteria) {
+        return criteria == null ? null : criteria.search();
     }
 }
