@@ -72,11 +72,11 @@ class ServicesImplTest {
 
         ServiceResponsePage result = servicesImpl.getAllActiveServices(null, pageable);
 
-        assertThat(result.getServices().keySet()).containsExactly("Accounts", "Loans");
-        assertThat(result.getServices().get("Accounts"))
+        assertThat(result.getContent().keySet()).containsExactly("Accounts", "Loans");
+        assertThat(result.getContent().get("Accounts"))
                 .extracting(ServiceResponse::name)
                 .containsExactly("Open Account", "Close Account");
-        assertThat(result.getServices().get("Loans")).hasSize(1);
+        assertThat(result.getContent().get("Loans")).hasSize(1);
         assertThat(result.getPage()).isEqualTo(1);
         assertThat(result.getSize()).isEqualTo(3);
         assertThat(result.getTotalElements()).isEqualTo(10);
@@ -94,7 +94,7 @@ class ServicesImplTest {
 
         ServiceResponsePage result = servicesImpl.getAllActiveServices(null, pageable);
 
-        assertThat(result.getServices().get("Loans").get(0).availableTo())
+        assertThat(result.getContent().get("Loans").get(0).availableTo())
                 .isEqualTo(Set.of(CustomerType.CLIENT, CustomerType.GUEST));
     }
 
@@ -105,7 +105,7 @@ class ServicesImplTest {
 
         ServiceResponsePage result = servicesImpl.getAllActiveServices(null, pageable);
 
-        assertThat(result.getServices()).isEmpty();
+        assertThat(result.getContent()).isEmpty();
         verify(servicesRepository).findActiveServices("", pageable);
     }
 
