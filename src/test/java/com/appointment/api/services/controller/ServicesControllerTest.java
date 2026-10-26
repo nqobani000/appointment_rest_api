@@ -63,8 +63,8 @@ class ServicesControllerTest {
 
         mockMvc.perform(get("/api/services"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.services.Accounts[0].id").value(id.toString()))
-                .andExpect(jsonPath("$.services.Accounts[0].name").value("Open Account"))
+                .andExpect(jsonPath("$.content.Accounts[0].id").value(id.toString()))
+                .andExpect(jsonPath("$.content.Accounts[0].name").value("Open Account"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.first").value(true))
                 .andExpect(jsonPath("$.last").value(true));
