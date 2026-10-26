@@ -5,6 +5,8 @@ import com.appointment.api.branches.dto.BranchResponsePage;
 import com.appointment.api.branches.dto.BranchServiceCriteria;
 import com.appointment.api.branches.mapper.BranchMapper;
 import com.appointment.api.branches.repository.BranchRepository;
+import com.appointment.api.cache.CacheNames;
+import org.springframework.cache.annotation.Cacheable;
 import com.appointment.api.commons.geo.GeoDistance;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,11 @@ public class BranchServiceImpl implements BranchService {
     private final BranchMapper branchMapper;
 
     @Override
+    @Cacheable(
+            cacheNames = CacheNames.BRANCHES,
+            key = "@branchCacheKeys.listKey(#criteria, #pageable)",
+            condition = "@branchCacheKeys.isCacheable(#criteria, #pageable)"
+    )
     @Transactional(readOnly = true)
     public BranchResponsePage getAllBranches(BranchServiceCriteria criteria, Pageable pageable) {
         validate(criteria);
