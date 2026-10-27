@@ -3,7 +3,7 @@ package com.appointment.api.services.controller;
 import com.appointment.api.customers.CustomerType;
 import com.appointment.api.exceptions.GlobalExceptionHandler;
 import com.appointment.api.exceptions.InvalidArgumentException;
-import com.appointment.api.exceptions.ServiceNotFoundException;
+import com.appointment.api.exceptions.ResourceNotFoundException;
 import com.appointment.api.services.dto.ServiceResponse;
 import com.appointment.api.services.dto.ServiceResponsePage;
 import com.appointment.api.services.dto.ServiceSearchCriteria;
@@ -105,7 +105,7 @@ class ServicesControllerTest {
     void getActiveServiceById_whenNotFound_returns404() throws Exception {
         UUID id = UUID.randomUUID();
         when(servicesService.getActiveServiceById(id.toString()))
-                .thenThrow(new ServiceNotFoundException(id));
+                .thenThrow(new ResourceNotFoundException("Active service", id));
 
         mockMvc.perform(get("/api/services/{id}", id))
                 .andExpect(status().isNotFound())
@@ -131,5 +131,23 @@ class ServicesControllerTest {
                 .andExpect(jsonPath("$.message").value("Invalid value for parameter 'serviceId': not-a-uuid"));
 
         org.mockito.Mockito.verifyNoInteractions(servicesService);
+    }
+
+    @Test
+    void getAllActiveServicesByBranchId_whenBranchMissing_returns404() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(servicesService.getAllActiveServicesByBranchId(org.mockito.ArgumentMatchers.eq(id.toString()),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new ResourceNotFoundException("Branch", id));
+
+        mockMvc.perform(get("/api/services/branch/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Branch not found: " + id));
+    }
+
+    @Test
+    void getAllActiveServicesByBranchId_withMalformedUuid_returns400() throws Exception {
+        mockMvc.perform(get("/api/services/branch/not-a-uuid"))
+                .andExpect(status().isBadRequest());
     }
 }

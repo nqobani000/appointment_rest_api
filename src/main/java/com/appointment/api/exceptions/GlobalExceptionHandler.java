@@ -11,9 +11,9 @@ import java.time.OffsetDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ServiceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleServiceNotFound(
-            ServiceNotFoundException exception) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException exception) {
 
         return buildResponse(
                 HttpStatus.NOT_FOUND,

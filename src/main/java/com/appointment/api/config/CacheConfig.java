@@ -23,7 +23,8 @@ public class CacheConfig {
     private static final List<String> CACHE_NAMES = Stream.of(
             CacheNames.SERVICES,
             CacheNames.SERVICE_BY_ID,
-            CacheNames.BRANCHES
+            CacheNames.BRANCHES,
+            CacheNames.BRANCH_SERVICES
     ).toList();
 
     @Bean

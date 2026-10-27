@@ -13,11 +13,11 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    void handleServiceNotFound_returns404WithMessage() {
+    void handleResourceNotFound_returns404WithMessage() {
         UUID id = UUID.randomUUID();
 
         ResponseEntity<ErrorResponse> response =
-                handler.handleServiceNotFound(new ServiceNotFoundException(id));
+                handler.handleResourceNotFound(new ResourceNotFoundException("Active service", id));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         ErrorResponse body = response.getBody();

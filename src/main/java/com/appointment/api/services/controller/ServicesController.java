@@ -28,6 +28,13 @@ public class ServicesController {
         return ResponseEntity.ok(servicesService.getAllActiveServices(criteria, pageable));
     }
 
+    @GetMapping("/branch/{branchId}")
+    public ResponseEntity<ServiceResponsePage> getAllActiveServicesByBranchId(
+            @PathVariable UUID branchId,
+            @ModelAttribute ServiceSearchCriteria criteria, Pageable pageable) {
+        return ResponseEntity.ok(servicesService.getAllActiveServicesByBranchId(branchId.toString(), criteria, pageable));
+    }
+
     @GetMapping("/{serviceId}")
     public ResponseEntity<ServiceResponse> getActiveServiceById(
             @PathVariable UUID serviceId) {

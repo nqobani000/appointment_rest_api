@@ -47,6 +47,11 @@ class ServicesCacheTest {
         }
 
         @Bean
+        com.appointment.api.branches.repository.BranchRepository branchRepository() {
+            return Mockito.mock(com.appointment.api.branches.repository.BranchRepository.class);
+        }
+
+        @Bean
         ServiceMapper serviceMapper() {
             return Mockito.mock(ServiceMapper.class);
         }
@@ -62,13 +67,15 @@ class ServicesCacheTest {
     @Autowired
     ServicesRepository repository;
     @Autowired
+    com.appointment.api.branches.repository.BranchRepository branchRepository;
+    @Autowired
     CacheManager cacheManager;
     @Autowired
     CacheStartupCleaner cleaner;
 
     @BeforeEach
     void setUp() {
-        Mockito.reset(repository);
+        Mockito.reset(repository, branchRepository);
         cacheManager.getCacheNames().forEach(n -> cacheManager.getCache(n).clear());
         NANOS.set(0);
         when(repository.findActiveServices(anyString(), any())).thenReturn(new PageImpl<>(List.of()));
@@ -133,5 +140,34 @@ class ServicesCacheTest {
         cacheManager.getCache(CacheNames.SERVICES).put("k", "v");
         cleaner.clearAll();
         assertThat(cacheManager.getCache(CacheNames.SERVICES).get("k")).isNull();
+    }
+
+    @Test
+    void branchListIsCachedPerBranchAndNormalized() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(branchRepository.existsById(any())).thenReturn(true);
+        when(repository.findActiveServicesByBranchId(any(), anyString(), any())).thenReturn(new PageImpl<>(List.of()));
+        var page = PageRequest.of(0, 10);
+
+        services.getAllActiveServicesByBranchId(a.toString().toUpperCase(), new ServiceSearchCriteria(" Loan "), page);
+        services.getAllActiveServicesByBranchId(a.toString(), new ServiceSearchCriteria("loan"), page);
+        verify(repository, times(1)).findActiveServicesByBranchId(any(), anyString(), any());
+
+        services.getAllActiveServicesByBranchId(b.toString(), new ServiceSearchCriteria("loan"), page);
+        verify(repository, times(2)).findActiveServicesByBranchId(any(), anyString(), any());
+    }
+
+    @Test
+    void unknownBranchIsNotCached() {
+        UUID id = UUID.randomUUID();
+        when(branchRepository.existsById(id)).thenReturn(false);
+        for (int i = 0; i < 2; i++) {
+            try {
+                services.getAllActiveServicesByBranchId(id.toString(), null, PageRequest.of(0, 10));
+            } catch (RuntimeException ignored) {
+            }
+        }
+        verify(branchRepository, times(2)).existsById(id);
     }
 }
