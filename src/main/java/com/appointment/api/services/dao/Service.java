@@ -36,6 +36,9 @@ public class Service {
     @Column(name = "available_to_guest", nullable = false)
     private boolean availableToGuest = false;
 
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes = 30;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

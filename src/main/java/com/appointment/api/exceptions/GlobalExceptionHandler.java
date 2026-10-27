@@ -1,6 +1,10 @@
 package com.appointment.api.exceptions;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -39,6 +43,25 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Invalid value for parameter '" + exception.getName() + "': " + exception.getValue()
         );
+    }
+
+    @ExceptionHandler({ConflictException.class, DataIntegrityViolationException.class,
+            PessimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleConflict(RuntimeException exception) {
+        String message = exception instanceof ConflictException
+                ? exception.getMessage()
+                : "The requested slot is no longer available.";
+        return buildResponse(HttpStatus.CONFLICT, message);
+    }
+
+    @ExceptionHandler(ReservationExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleExpired(ReservationExpiredException exception) {
+        return buildResponse(HttpStatus.GONE, exception.getMessage());
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception exception) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Invalid request.");
     }
 
     @ExceptionHandler(RuntimeException.class)
