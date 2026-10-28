@@ -1,5 +1,6 @@
 package com.appointment.api.reservations.dto;
 
+import com.appointment.api.commons.dto.Summaries;
 import com.appointment.api.reservations.ReservationStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 

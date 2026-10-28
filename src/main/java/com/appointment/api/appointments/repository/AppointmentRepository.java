@@ -1,6 +1,7 @@
 package com.appointment.api.appointments.repository;
 
 import com.appointment.api.appointments.dao.Appointment;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,9 @@ import java.util.UUID;
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 
     Optional<Appointment> findByReservationId(UUID reservationId);
+
+    @EntityGraph(attributePaths = {"branch", "service", "consultant", "reservation"})
+    Optional<Appointment> findByReferenceNo(String referenceNo);
 
     /** Only CONFIRMED appointments consume capacity; overlap uses the half-open interval [start, end). */
     @Query("""

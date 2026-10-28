@@ -91,10 +91,11 @@ public class GuestVerificationServiceImpl implements GuestVerificationService {
         return new GuestCodeResponse(SENT_MESSAGE, verification.getExpiresAt().atOffset(ZoneOffset.UTC));
     }
 
-    // Failed attempts must persist, so the attempt counter is not rolled back with the 401.
     @Override
     @Transactional(noRollbackFor = {AuthenticationFailedException.class, ConflictException.class})
     public AuthResponse verify(GuestVerifyRequest request) {
+        log.info("Verifying guest code for email: {}", request.email());
+
         String email = normalize(request.email());
         Instant now = clock.instant();
 
@@ -112,6 +113,7 @@ public class GuestVerificationServiceImpl implements GuestVerificationService {
                 verification.getCodeHash().getBytes(StandardCharsets.UTF_8));
         if (!matches) {
             if (verification.getAttempts() >= properties.maxAttempts()) {
+                log.info("Guest verification code for email {} has reached max attempts. Marking as consumed.", email);
                 verification.setConsumedAt(now);
             }
             throw new AuthenticationFailedException(INVALID_CODE);
@@ -133,6 +135,7 @@ public class GuestVerificationServiceImpl implements GuestVerificationService {
         } catch (DataIntegrityViolationException e) {
             throw new ConflictException("Another verification for this email just completed. Please try again.");
         }
+        log.info("Guest verification successful for email: {}", email);
         return AuthResponse.of(jwtService.issue(customer), customer);
     }
 

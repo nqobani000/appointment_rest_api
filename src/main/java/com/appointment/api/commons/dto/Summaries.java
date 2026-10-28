@@ -1,4 +1,4 @@
-package com.appointment.api.reservations.dto;
+package com.appointment.api.commons.dto;
 
 import java.util.UUID;
 

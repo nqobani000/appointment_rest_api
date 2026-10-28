@@ -1,5 +1,6 @@
 package com.appointment.api.reservations.controller;
 
+import com.appointment.api.appointments.dto.AppointmentResponse;
 import com.appointment.api.reservations.dto.*;
 import com.appointment.api.reservations.service.ReservationService;
 import jakarta.validation.Valid;

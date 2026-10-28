@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/branches/**", "/api/services/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/branches/**", "/api/services/**", "/api/appointments/**").permitAll()
                         .requestMatchers("/api/reservations/**").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(o -> o

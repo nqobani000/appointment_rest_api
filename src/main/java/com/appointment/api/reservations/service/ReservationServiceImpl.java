@@ -22,6 +22,7 @@ import com.appointment.api.reservations.dto.ConfirmationResult;
 import com.appointment.api.reservations.dto.CreateReservationRequest;
 import com.appointment.api.reservations.dto.ReservationResponse;
 import com.appointment.api.reservations.mapper.ReservationMapper;
+import com.appointment.api.appointments.mapper.AppointmentMapper;
 import com.appointment.api.reservations.repository.ReservationRepository;
 import com.appointment.api.services.dao.Service;
 import com.appointment.api.services.repository.ServicesRepository;
@@ -51,6 +52,7 @@ public class ReservationServiceImpl implements ReservationService {
     private final ConsultantAllocator allocator;
     private final ReservationTokenService tokenService;
     private final ReservationMapper mapper;
+    private final AppointmentMapper appointmentMapper;
     private final ReservationProperties properties;
     private final Clock clock;
 
@@ -142,7 +144,7 @@ public class ReservationServiceImpl implements ReservationService {
                 Appointment existing = appointmentRepository.findByReservationId(reservationId)
                         .orElseThrow(() -> new ConflictException("The reservation is in an inconsistent state."));
                 log.info("Reservation {} has already been confirmed with appointment {}.", reservationId, existing.getId());
-                return new ConfirmationResult(mapper.toResponse(existing), false);
+                return new ConfirmationResult(appointmentMapper.toResponse(existing), false);
             }
             case RELEASED -> {
                 log.warn("Attempted to confirm a released reservation {}.", reservationId);
@@ -183,7 +185,7 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.transitionTo(ReservationStatus.CONFIRMED, now);
         reservationRepository.flush();
         appointmentRepository.saveAndFlush(appointment);
-        return new ConfirmationResult(mapper.toResponse(appointment), true);
+        return new ConfirmationResult(appointmentMapper.toResponse(appointment), true);
     }
 
     @Override

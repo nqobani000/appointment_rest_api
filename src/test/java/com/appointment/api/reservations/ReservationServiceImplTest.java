@@ -14,6 +14,7 @@ import com.appointment.api.exceptions.*;
 import com.appointment.api.reservations.config.ReservationProperties;
 import com.appointment.api.reservations.dao.Reservation;
 import com.appointment.api.reservations.dto.*;
+import com.appointment.api.appointments.mapper.AppointmentMapper;
 import com.appointment.api.reservations.mapper.ReservationMapper;
 import com.appointment.api.reservations.repository.ReservationRepository;
 import com.appointment.api.reservations.service.*;
@@ -65,7 +66,7 @@ class ReservationServiceImplTest {
     @BeforeEach
     void setUp() {
         sut = new ReservationServiceImpl(reservations, appointments, branches, services, customers, links,
-                allocator, tokens, new ReservationMapper(), props, clock);
+                allocator, tokens, new ReservationMapper(), new AppointmentMapper(), props, clock);
         branch.setId(branchId);
         branch.setName("B");
         service.setId(serviceId);
