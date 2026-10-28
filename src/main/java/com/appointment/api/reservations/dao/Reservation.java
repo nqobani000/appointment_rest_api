@@ -2,7 +2,7 @@ package com.appointment.api.reservations.dao;
 
 import com.appointment.api.branches.dao.Branch;
 import com.appointment.api.consultants.dao.Consultant;
-import com.appointment.api.customers.dao.Customer;
+import com.appointment.api.users.dao.Customer;
 import com.appointment.api.exceptions.ConflictException;
 import com.appointment.api.reservations.ReservationStatus;
 import com.appointment.api.services.dao.Service;
@@ -53,6 +53,7 @@ public class Reservation {
     @Setter(AccessLevel.NONE)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
+    @Builder.Default
     private ReservationStatus status = ReservationStatus.HELD;
 
     @Column(name = "expires_at", nullable = false)

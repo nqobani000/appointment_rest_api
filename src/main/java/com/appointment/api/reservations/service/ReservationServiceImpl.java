@@ -8,9 +8,9 @@ import com.appointment.api.branches.repository.BranchRepository;
 import com.appointment.api.branches.repository.BranchServiceLinkRepository;
 import com.appointment.api.consultants.ConsultantStatus;
 import com.appointment.api.consultants.dao.Consultant;
-import com.appointment.api.customers.CustomerType;
-import com.appointment.api.customers.dao.Customer;
-import com.appointment.api.customers.repository.CustomerRepository;
+import com.appointment.api.users.CustomerType;
+import com.appointment.api.users.dao.Customer;
+import com.appointment.api.users.repository.CustomerRepository;
 import com.appointment.api.exceptions.ConflictException;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import com.appointment.api.exceptions.ReservationExpiredException;
@@ -56,7 +56,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public ReservationResponse createReservation(CreateReservationRequest request) {
+    public ReservationResponse createReservation(UUID customerId, CreateReservationRequest request) {
         OffsetDateTime now = OffsetDateTime.now(clock);
         OffsetDateTime start = request.startAt();
 
@@ -67,7 +67,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         Branch branch = getBranch(request);
         Service service = getService(request);
-        Customer customer = getCustomer(request);
+        Customer customer = getCustomer(customerId);
 
         validateServiceEligibility(branch, service, customer);
 
@@ -102,18 +102,18 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
-    public ReservationResponse getReservation(UUID reservationId, String token) {
-        Reservation reservation = loadAuthorized(reservationId, token);
+    public ReservationResponse getReservation(UUID reservationId, UUID customerId, String token) {
+        Reservation reservation = loadAuthorized(reservationId, customerId, token);
         expireIfStale(reservation, OffsetDateTime.now(clock));
         return mapper.toResponse(reservation, null);
     }
 
     @Override
     @Transactional(noRollbackFor = ReservationExpiredException.class)
-    public void releaseReservation(UUID reservationId, String token) {
-        log.info("Releasing reservation {} with token {}", reservationId, token);
+    public void releaseReservation(UUID reservationId, UUID customerId, String token) {
+        log.info("Releasing reservation {}", reservationId);
         OffsetDateTime now = OffsetDateTime.now(clock);
-        Reservation reservation = loadAuthorized(reservationId, token);
+        Reservation reservation = loadAuthorized(reservationId, customerId, token);
         expireIfStale(reservation, now);
         switch (reservation.getStatus()) {
             case HELD -> reservation.transitionTo(ReservationStatus.RELEASED, now);
@@ -131,10 +131,10 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional(noRollbackFor = {ReservationExpiredException.class, ConflictException.class})
-    public ConfirmationResult confirmReservation(UUID reservationId, String token) {
+    public ConfirmationResult confirmReservation(UUID reservationId, UUID customerId, String token) {
         log.info("Confirming reservation {}", reservationId);
         OffsetDateTime now = OffsetDateTime.now(clock);
-        Reservation reservation = loadAuthorized(reservationId, token);
+        Reservation reservation = loadAuthorized(reservationId, customerId, token);
         expireIfStale(reservation, now);
 
         switch (reservation.getStatus()) {
@@ -192,10 +192,11 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationRepository.expireAllStale(OffsetDateTime.now(clock));
     }
 
-    private Reservation loadAuthorized(UUID reservationId, String token) {
+    private Reservation loadAuthorized(UUID reservationId, UUID customerId, String token) {
         Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException(RESERVATION, reservationId));
-        if (!tokenService.matches(token, reservation.getTokenHash())) {
+        boolean owner = reservation.getCustomer() != null && reservation.getCustomer().getId().equals(customerId);
+        if (!owner || !tokenService.matches(token, reservation.getTokenHash())) {
             throw new ResourceNotFoundException(RESERVATION, reservationId);
         }
         return reservation;
@@ -221,11 +222,11 @@ public class ReservationServiceImpl implements ReservationService {
         }
     }
 
-    private @NonNull Customer getCustomer(CreateReservationRequest request) {
-        return customerRepository.findById(request.customerId())
+    private @NonNull Customer getCustomer(UUID customerId) {
+        return customerRepository.findById(customerId)
                 .orElseThrow(() -> {
-                    log.error("Customer not found: id={}", request.customerId());
-                    return new ResourceNotFoundException("Customer", request.customerId());
+                    log.error("Customer not found: id={}", customerId);
+                    return new ResourceNotFoundException("Customer", customerId);
                 });
     }
 

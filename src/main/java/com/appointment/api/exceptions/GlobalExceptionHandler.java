@@ -54,6 +54,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, message);
     }
 
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationFailed(AuthenticationFailedException exception) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, exception.getMessage());
+    }
+
     @ExceptionHandler(ReservationExpiredException.class)
     public ResponseEntity<ErrorResponse> handleExpired(ReservationExpiredException exception) {
         return buildResponse(HttpStatus.GONE, exception.getMessage());

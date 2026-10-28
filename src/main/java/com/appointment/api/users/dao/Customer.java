@@ -1,7 +1,6 @@
-package com.appointment.api.customers.dao;
+package com.appointment.api.users.dao;
 
-import com.appointment.api.customers.CustomerType;
-import com.appointment.api.users.dao.User;
+import com.appointment.api.users.CustomerType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;

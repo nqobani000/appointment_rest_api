@@ -1,6 +1,6 @@
 package com.appointment.api.services.dto;
 
-import com.appointment.api.customers.CustomerType;
+import com.appointment.api.users.CustomerType;
 
 import java.util.Set;
 import java.util.UUID;

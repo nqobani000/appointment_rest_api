@@ -7,9 +7,9 @@ import com.appointment.api.branches.dao.Branch;
 import com.appointment.api.branches.repository.BranchRepository;
 import com.appointment.api.branches.repository.BranchServiceLinkRepository;
 import com.appointment.api.consultants.dao.Consultant;
-import com.appointment.api.customers.CustomerType;
-import com.appointment.api.customers.dao.Customer;
-import com.appointment.api.customers.repository.CustomerRepository;
+import com.appointment.api.users.CustomerType;
+import com.appointment.api.users.dao.Customer;
+import com.appointment.api.users.repository.CustomerRepository;
 import com.appointment.api.exceptions.*;
 import com.appointment.api.reservations.config.ReservationProperties;
 import com.appointment.api.reservations.dao.Reservation;
@@ -86,7 +86,7 @@ class ReservationServiceImplTest {
     }
 
     private CreateReservationRequest req(OffsetDateTime start) {
-        return new CreateReservationRequest(branchId, serviceId, customerId, start);
+        return new CreateReservationRequest(branchId, serviceId, start);
     }
 
     private OffsetDateTime future() {
@@ -94,7 +94,7 @@ class ReservationServiceImplTest {
     }
 
     private Reservation stored(ReservationStatus target) {
-        ReservationResponse created = sut.createReservation(req(future()));
+        ReservationResponse created = sut.createReservation(customerId, req(future()));
         ArgumentCaptor<Reservation> c = ArgumentCaptor.forClass(Reservation.class);
         verify(reservations).saveAndFlush(c.capture());
         Reservation r = c.getValue();
@@ -110,7 +110,7 @@ class ReservationServiceImplTest {
 
     @Test
     void createHoldsWithDerivedEndExpiryAndHashedToken() {
-        ReservationResponse res = sut.createReservation(req(future()));
+        ReservationResponse res = sut.createReservation(customerId, req(future()));
         ArgumentCaptor<Reservation> c = ArgumentCaptor.forClass(Reservation.class);
         verify(reservations).saveAndFlush(c.capture());
         Reservation r = c.getValue();
@@ -125,38 +125,48 @@ class ReservationServiceImplTest {
 
     @Test
     void createRejectsPastAndNoConsultant() {
-        assertThatThrownBy(() -> sut.createReservation(req(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))))
+        assertThatThrownBy(() -> sut.createReservation(customerId, req(OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC))))
                 .isInstanceOf(InvalidArgumentException.class);
         when(allocator.allocate(any(), any(), any(), any(), any())).thenThrow(new ConflictException("none"));
-        assertThatThrownBy(() -> sut.createReservation(req(future()))).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> sut.createReservation(customerId, req(future()))).isInstanceOf(ConflictException.class);
         verify(reservations, never()).saveAndFlush(any());
     }
 
     @Test
     void createRejectsServiceNotAtBranchOrWrongCustomerType() {
         when(links.existsByBranchIdAndServiceId(branchId, serviceId)).thenReturn(false);
-        assertThatThrownBy(() -> sut.createReservation(req(future()))).isInstanceOf(InvalidArgumentException.class);
+        assertThatThrownBy(() -> sut.createReservation(customerId, req(future()))).isInstanceOf(InvalidArgumentException.class);
         when(links.existsByBranchIdAndServiceId(branchId, serviceId)).thenReturn(true);
         customer.setCustomerType(CustomerType.GUEST);
         service.setAvailableToGuest(false);
-        assertThatThrownBy(() -> sut.createReservation(req(future()))).isInstanceOf(InvalidArgumentException.class);
+        assertThatThrownBy(() -> sut.createReservation(customerId, req(future()))).isInstanceOf(InvalidArgumentException.class);
     }
 
     @Test
     void wrongOrMissingTokenLooksLikeNotFound() {
         Reservation r = stored(ReservationStatus.HELD);
-        assertThatThrownBy(() -> sut.getReservation(r.getId(), "nope")).isInstanceOf(ResourceNotFoundException.class);
-        assertThatThrownBy(() -> sut.getReservation(r.getId(), null)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> sut.getReservation(r.getId(), customerId, "nope")).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> sut.getReservation(r.getId(), customerId, null)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void otherCustomerCannotAccessReservation() {
+        Reservation r = stored(ReservationStatus.HELD);
+        UUID other = UUID.randomUUID();
+        assertThatThrownBy(() -> sut.getReservation(r.getId(), other, lastToken)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> sut.releaseReservation(r.getId(), other, lastToken)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), other, lastToken)).isInstanceOf(ResourceNotFoundException.class);
+        assertThat(r.getStatus()).isEqualTo(ReservationStatus.HELD);
     }
 
     @Test
     void expiryBoundaryOnGetAndConfirm() {
         Reservation r = stored(ReservationStatus.HELD);
         clock.set(r.getExpiresAt().toInstant().minusNanos(1000));
-        assertThat(sut.getReservation(r.getId(), lastToken).status()).isEqualTo(ReservationStatus.HELD);
+        assertThat(sut.getReservation(r.getId(), customerId, lastToken).status()).isEqualTo(ReservationStatus.HELD);
 
         clock.set(r.getExpiresAt().toInstant());
-        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), lastToken)).isInstanceOf(ReservationExpiredException.class);
+        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), customerId, lastToken)).isInstanceOf(ReservationExpiredException.class);
         assertThat(r.getStatus()).isEqualTo(ReservationStatus.EXPIRED);
         verify(appointments, never()).saveAndFlush(any());
     }
@@ -165,30 +175,30 @@ class ReservationServiceImplTest {
     void getReportsExpiredAfterExpiry() {
         Reservation r = stored(ReservationStatus.HELD);
         clock.set(r.getExpiresAt().toInstant().plusSeconds(5));
-        assertThat(sut.getReservation(r.getId(), lastToken).status()).isEqualTo(ReservationStatus.EXPIRED);
+        assertThat(sut.getReservation(r.getId(), customerId, lastToken).status()).isEqualTo(ReservationStatus.EXPIRED);
     }
 
     @Test
     void releaseRules() {
         Reservation r = stored(ReservationStatus.HELD);
-        sut.releaseReservation(r.getId(), lastToken);
+        sut.releaseReservation(r.getId(), customerId, lastToken);
         assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
-        sut.releaseReservation(r.getId(), lastToken); // idempotent
-        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), lastToken)).isInstanceOf(ConflictException.class);
+        sut.releaseReservation(r.getId(), customerId, lastToken); // idempotent
+        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), customerId, lastToken)).isInstanceOf(ConflictException.class);
     }
 
     @Test
     void expiredIsNotReleasedAndConfirmedCannotBeReleased() {
         Reservation r = stored(ReservationStatus.HELD);
         clock.set(r.getExpiresAt().toInstant());
-        assertThatThrownBy(() -> sut.releaseReservation(r.getId(), lastToken)).isInstanceOf(ReservationExpiredException.class);
+        assertThatThrownBy(() -> sut.releaseReservation(r.getId(), customerId, lastToken)).isInstanceOf(ReservationExpiredException.class);
         assertThat(r.getStatus()).isEqualTo(ReservationStatus.EXPIRED);
     }
 
     @Test
     void confirmCreatesSingleAppointmentPreservingAssignment() {
         Reservation r = stored(ReservationStatus.HELD);
-        ConfirmationResult res = sut.confirmReservation(r.getId(), lastToken);
+        ConfirmationResult res = sut.confirmReservation(r.getId(), customerId, lastToken);
         ArgumentCaptor<Appointment> c = ArgumentCaptor.forClass(Appointment.class);
         verify(appointments).saveAndFlush(c.capture());
         Appointment a = c.getValue();
@@ -201,17 +211,17 @@ class ReservationServiceImplTest {
         assertThat(a.getStatus()).isEqualTo(AppointmentStatus.CONFIRMED);
 
         when(appointments.findByReservationId(r.getId())).thenReturn(Optional.of(a));
-        ConfirmationResult again = sut.confirmReservation(r.getId(), lastToken);
+        ConfirmationResult again = sut.confirmReservation(r.getId(), customerId, lastToken);
         assertThat(again.created()).isFalse();
         verify(appointments, times(1)).saveAndFlush(any());
-        assertThatThrownBy(() -> sut.releaseReservation(r.getId(), lastToken)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> sut.releaseReservation(r.getId(), customerId, lastToken)).isInstanceOf(ConflictException.class);
     }
 
     @Test
     void confirmFailsSafelyWhenConsultantNoLongerAvailable() {
         Reservation r = stored(ReservationStatus.HELD);
         when(allocator.withinWorkingHours(any(), any(), any(), any())).thenReturn(false);
-        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), lastToken)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), customerId, lastToken)).isInstanceOf(ConflictException.class);
         assertThat(r.getStatus()).isEqualTo(ReservationStatus.RELEASED);
         verify(appointments, never()).saveAndFlush(any());
     }

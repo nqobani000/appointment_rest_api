@@ -3,7 +3,7 @@ package com.appointment.api.appointments.dao;
 import com.appointment.api.appointments.AppointmentStatus;
 import com.appointment.api.branches.dao.Branch;
 import com.appointment.api.consultants.dao.Consultant;
-import com.appointment.api.customers.dao.Customer;
+import com.appointment.api.users.dao.Customer;
 import com.appointment.api.reservations.dao.Reservation;
 import com.appointment.api.services.dao.Service;
 import jakarta.persistence.*;
@@ -56,5 +56,6 @@ public class Appointment {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
+    @Builder.Default
     private AppointmentStatus status = AppointmentStatus.CONFIRMED;
 }

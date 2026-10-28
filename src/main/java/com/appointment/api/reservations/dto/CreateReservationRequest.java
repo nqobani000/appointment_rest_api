@@ -8,6 +8,5 @@ import java.util.UUID;
 public record CreateReservationRequest(
         @NotNull UUID branchId,
         @NotNull UUID serviceId,
-        @NotNull UUID customerId,
         @NotNull OffsetDateTime startAt) {
 }

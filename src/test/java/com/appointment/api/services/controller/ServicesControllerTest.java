@@ -1,6 +1,6 @@
 package com.appointment.api.services.controller;
 
-import com.appointment.api.customers.CustomerType;
+import com.appointment.api.users.CustomerType;
 import com.appointment.api.exceptions.GlobalExceptionHandler;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import com.appointment.api.exceptions.ResourceNotFoundException;
