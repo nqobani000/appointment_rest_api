@@ -46,6 +46,7 @@ public class OutboxProcessor {
             row.setVariables(null);
             row.setLastError(null);
         } catch (RuntimeException e) {
+            log.error("Email {} attempt {} failed: {}", row.getId(), row.getAttempts(), e.getMessage());
             row.setLastError(truncate(e.getClass().getSimpleName()));
             if (row.getAttempts() >= properties.maxAttempts()) {
                 row.setStatus(OutboxStatus.FAILED);

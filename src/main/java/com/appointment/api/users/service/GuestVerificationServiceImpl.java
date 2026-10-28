@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
@@ -162,12 +163,20 @@ public class GuestVerificationServiceImpl implements GuestVerificationService {
 
     private @NonNull EmailMessage constructEmail(GuestVerification verification, String code, String email) {
         String dedupeKey = "guest-verification:" + verification.getId();
-        String ttl = String.valueOf(properties.codeTtl().toMinutes());
-        Map<String, String> codeResponse = Map.of("code", code, "minutes", ttl);
+        Map<String, String> codeResponse = Map.of("code", code, "expiresIn", describe(properties.codeTtl()));
 
         return new EmailMessage(
                 dedupeKey, email,
                 EmailTemplate.VERIFICATION_CODE,
                 codeResponse);
+    }
+
+    private static String describe(Duration ttl) {
+        long minutes = ttl.toMinutes();
+        if (minutes < 1) {
+            long seconds = Math.max(1, ttl.toSeconds());
+            return seconds + (seconds == 1 ? " second" : " seconds");
+        }
+        return minutes + (minutes == 1 ? " minute" : " minutes");
     }
 }

@@ -103,6 +103,9 @@ class GuestVerificationServiceImplTest {
     void requestCreatesPendingVerificationAndQueuesEmailWithoutCreatingCustomer() {
         String code = requestAndCaptureCode(" Zan@Example.com ", "Zan");
         assertThat(code).matches("\\d{6}");
+        ArgumentCaptor<EmailMessage> queued = ArgumentCaptor.forClass(EmailMessage.class);
+        verify(notifications).enqueue(queued.capture());
+        assertThat(queued.getValue().variables()).containsEntry("expiresIn", "10 minutes");
         assertThat(store).hasSize(1);
         assertThat(store.get(0).getEmail()).isEqualTo("zan@example.com");
         assertThat(store.get(0).getCodeHash()).doesNotContain(code);

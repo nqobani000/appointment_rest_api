@@ -23,6 +23,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public boolean enqueue(EmailMessage message) {
+        message.template().validate(message.variables());
         if (outbox.existsByDedupeKey(message.dedupeKey())) {
             return false;
         }

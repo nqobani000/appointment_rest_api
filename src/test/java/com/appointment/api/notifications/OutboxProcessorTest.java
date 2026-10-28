@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -47,7 +48,7 @@ class OutboxProcessorTest {
         row.setDedupeKey("k");
         row.setRecipient("a@b.com");
         row.setTemplate(EmailTemplate.VERIFICATION_CODE);
-        row.setVariables(Map.of("code", "123456", "minutes", "10"));
+        row.setVariables(Map.of("code", "123456", "expiresIn", "10 minutes"));
         when(repo.lockDue(any(), anyInt())).thenReturn(List.of(row));
     }
 
@@ -85,9 +86,20 @@ class OutboxProcessorTest {
     void enqueueIsIdempotentPerDedupeKey() {
         NotificationServiceImpl service = new NotificationServiceImpl(repo, clock);
         when(repo.existsByDedupeKey("k")).thenReturn(false, true);
-        EmailMessage msg = new EmailMessage("k", "a@b.com", EmailTemplate.VERIFICATION_CODE, Map.of("code", "1"));
+        EmailMessage msg = new EmailMessage("k", "a@b.com", EmailTemplate.VERIFICATION_CODE,
+                Map.of("code", "1", "expiresIn", "10 minutes"));
         assertThat(service.enqueue(msg)).isTrue();
         assertThat(service.enqueue(msg)).isFalse();
         verify(repo, times(1)).save(any());
+    }
+
+    @Test
+    void enqueueRejectsAMessageWithMissingVariablesAndQueuesNothing() {
+        NotificationServiceImpl service = new NotificationServiceImpl(repo, clock);
+        EmailMessage msg = new EmailMessage("k", "a@b.com", EmailTemplate.VERIFICATION_CODE, Map.of("code", "1"));
+        assertThatThrownBy(() -> service.enqueue(msg))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("expiresIn");
+        verify(repo, never()).save(any());
     }
 }

@@ -13,7 +13,8 @@ public class LoggingEmailSender implements EmailSender {
 
     @Override
     public void send(EmailMessage message) {
-        log.info("[DEV EMAIL] to={} subject={} body={}", message.recipient(), message.template().subject(),
-                message.template().renderBody(message.variables()));
+        log.info("[DEV EMAIL] to={} subject={} body={}", message.recipient(),
+                message.template().renderSubject(message.variables()),
+                message.template().renderText(message.variables()));
     }
 }

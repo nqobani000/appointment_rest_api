@@ -11,6 +11,9 @@ import com.appointment.api.users.CustomerType;
 import com.appointment.api.users.dao.Customer;
 import com.appointment.api.users.repository.CustomerRepository;
 import com.appointment.api.exceptions.*;
+import com.appointment.api.notifications.EmailMessage;
+import com.appointment.api.notifications.NotificationService;
+import com.appointment.api.notifications.template.EmailTemplate;
 import com.appointment.api.reservations.config.ReservationProperties;
 import com.appointment.api.reservations.dao.Reservation;
 import com.appointment.api.reservations.dto.*;
@@ -51,6 +54,7 @@ class ReservationServiceImplTest {
     @Mock CustomerRepository customers;
     @Mock BranchServiceLinkRepository links;
     @Mock ConsultantAllocator allocator;
+    @Mock NotificationService notifications;
 
     final ReservationTokenService tokens = new ReservationTokenService();
     final ReservationProperties props = new ReservationProperties(Duration.ofMinutes(10), ZoneId.of("UTC"), Duration.ofMinutes(1));
@@ -66,7 +70,8 @@ class ReservationServiceImplTest {
     @BeforeEach
     void setUp() {
         sut = new ReservationServiceImpl(reservations, appointments, branches, services, customers, links,
-                allocator, tokens, new ReservationMapper(), new AppointmentMapper(), props, clock);
+                allocator, tokens, new ReservationMapper(), new AppointmentMapper(), notifications,
+                new BookingConfirmationEmailFactory(props), props, clock);
         branch.setId(branchId);
         branch.setName("B");
         service.setId(serviceId);
@@ -74,6 +79,8 @@ class ReservationServiceImplTest {
         service.setDurationMinutes(45);
         customer.setId(customerId);
         customer.setCustomerType(CustomerType.CLIENT);
+        customer.setName("Jane");
+        customer.setEmail("jane@example.com");
         consultant.setId(UUID.randomUUID());
         consultant.setName("C");
         consultant.setSurname("D");
@@ -215,7 +222,45 @@ class ReservationServiceImplTest {
         ConfirmationResult again = sut.confirmReservation(r.getId(), customerId, lastToken);
         assertThat(again.created()).isFalse();
         verify(appointments, times(1)).saveAndFlush(any());
+        verify(notifications, times(1)).enqueue(any());
         assertThatThrownBy(() -> sut.releaseReservation(r.getId(), customerId, lastToken)).isInstanceOf(ConflictException.class);
+    }
+
+    @Test
+    void confirmQueuesOneConfirmationEmailToTheCustomer() {
+        Reservation r = stored(ReservationStatus.HELD);
+        sut.confirmReservation(r.getId(), customerId, lastToken);
+
+        ArgumentCaptor<EmailMessage> c = ArgumentCaptor.forClass(EmailMessage.class);
+        verify(notifications).enqueue(c.capture());
+        EmailMessage email = c.getValue();
+        ArgumentCaptor<Appointment> saved = ArgumentCaptor.forClass(Appointment.class);
+        verify(appointments).saveAndFlush(saved.capture());
+
+        assertThat(email.recipient()).isEqualTo("jane@example.com");
+        assertThat(email.template()).isEqualTo(EmailTemplate.BOOKING_CONFIRMATION);
+        assertThat(email.dedupeKey()).isEqualTo("appointment-confirmation:" + saved.getValue().getReferenceNo());
+        assertThat(email.variables()).containsEntry("reference", saved.getValue().getReferenceNo())
+                .containsEntry("service", "S")
+                .containsEntry("branchName", "B")
+                .containsEntry("consultant", "C D");
+    }
+
+    @Test
+    void confirmStillSucceedsWhenTheCustomerHasNoEmail() {
+        Reservation r = stored(ReservationStatus.HELD);
+        customer.setEmail(" ");
+        ConfirmationResult res = sut.confirmReservation(r.getId(), customerId, lastToken);
+        assertThat(res.created()).isTrue();
+        verifyNoInteractions(notifications);
+    }
+
+    @Test
+    void failedConfirmationQueuesNoEmail() {
+        Reservation r = stored(ReservationStatus.HELD);
+        when(allocator.withinWorkingHours(any(), any(), any(), any())).thenReturn(false);
+        assertThatThrownBy(() -> sut.confirmReservation(r.getId(), customerId, lastToken)).isInstanceOf(ConflictException.class);
+        verifyNoInteractions(notifications);
     }
 
     @Test

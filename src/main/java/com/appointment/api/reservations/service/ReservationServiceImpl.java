@@ -15,6 +15,7 @@ import com.appointment.api.exceptions.ConflictException;
 import com.appointment.api.exceptions.InvalidArgumentException;
 import com.appointment.api.exceptions.ReservationExpiredException;
 import com.appointment.api.exceptions.ResourceNotFoundException;
+import com.appointment.api.notifications.NotificationService;
 import com.appointment.api.reservations.ReservationStatus;
 import com.appointment.api.reservations.config.ReservationProperties;
 import com.appointment.api.reservations.dao.Reservation;
@@ -53,6 +54,8 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationTokenService tokenService;
     private final ReservationMapper mapper;
     private final AppointmentMapper appointmentMapper;
+    private final NotificationService notifications;
+    private final BookingConfirmationEmailFactory confirmationEmails;
     private final ReservationProperties properties;
     private final Clock clock;
 
@@ -163,6 +166,7 @@ public class ReservationServiceImpl implements ReservationService {
                 reservation.getStartTime(), reservation.getEndTime())
                 && !appointmentRepository.existsOverlap(consultant.getId(),
                 reservation.getStartTime(), reservation.getEndTime());
+
         if (!stillValid) {
             reservation.transitionTo(ReservationStatus.RELEASED, now);
             log.error("The assigned consultant {} is no longer available for reservation {}.", consultant.getId(), reservationId);
@@ -183,8 +187,11 @@ public class ReservationServiceImpl implements ReservationService {
                 .build();
 
         reservation.transitionTo(ReservationStatus.CONFIRMED, now);
+
         reservationRepository.flush();
         appointmentRepository.saveAndFlush(appointment);
+        confirmationEmails.build(appointment).ifPresent(notifications::enqueue);
+
         return new ConfirmationResult(appointmentMapper.toResponse(appointment), true);
     }
 
