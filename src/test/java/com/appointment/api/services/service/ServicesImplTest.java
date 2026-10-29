@@ -1,8 +1,8 @@
 package com.appointment.api.services.service;
 
-import com.appointment.api.customers.CustomerType;
+import com.appointment.api.users.CustomerType;
 import com.appointment.api.exceptions.InvalidArgumentException;
-import com.appointment.api.exceptions.ServiceNotFoundException;
+import com.appointment.api.exceptions.ResourceNotFoundException;
 import com.appointment.api.services.dao.ServiceCategory;
 import com.appointment.api.services.dto.ServiceResponse;
 import com.appointment.api.services.dto.ServiceResponsePage;
@@ -36,6 +36,9 @@ class ServicesImplTest {
 
     @Mock
     private ServicesRepository servicesRepository;
+
+    @Mock
+    private com.appointment.api.branches.repository.BranchRepository branchRepository;
 
     @Spy
     private ServiceMapper serviceMapper = new ServiceMapper();
@@ -148,7 +151,7 @@ class ServicesImplTest {
         when(servicesRepository.findActiveServiceById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> servicesImpl.getActiveServiceById(id.toString()))
-                .isInstanceOf(ServiceNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Active service not found: " + id);
     }
 
@@ -160,5 +163,44 @@ class ServicesImplTest {
                 .hasCauseInstanceOf(IllegalArgumentException.class);
 
         verifyNoInteractions(servicesRepository);
+    }
+
+    @Test
+    void getAllActiveServicesByBranchId_returnsGroupedPage() {
+        UUID branchId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        var s = service("Open Account", "Accounts", true, true);
+        when(branchRepository.existsById(branchId)).thenReturn(true);
+        when(servicesRepository.findActiveServicesByBranchId(branchId, "open", pageable))
+                .thenReturn(new PageImpl<>(List.of(s), pageable, 1));
+
+        ServiceResponsePage result = servicesImpl.getAllActiveServicesByBranchId(
+                branchId.toString(), new ServiceSearchCriteria(" open "), pageable);
+
+        assertThat(result.getContent()).containsOnlyKeys("Accounts");
+        assertThat(result.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    void getAllActiveServicesByBranchId_whenBranchMissing_throwsNotFound() {
+        UUID branchId = UUID.randomUUID();
+        when(branchRepository.existsById(branchId)).thenReturn(false);
+
+        assertThatThrownBy(() -> servicesImpl.getAllActiveServicesByBranchId(
+                branchId.toString(), null, PageRequest.of(0, 10)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Branch not found: " + branchId);
+
+        verifyNoInteractions(servicesRepository);
+    }
+
+    @Test
+    void getAllActiveServicesByBranchId_withInvalidUuid_throwsInvalidArgument() {
+        assertThatThrownBy(() -> servicesImpl.getAllActiveServicesByBranchId(
+                "nope", null, PageRequest.of(0, 10)))
+                .isInstanceOf(InvalidArgumentException.class)
+                .hasMessage("Invalid branch ID: nope");
+
+        verifyNoInteractions(servicesRepository, branchRepository);
     }
 }

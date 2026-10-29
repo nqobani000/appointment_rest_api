@@ -1,0 +1,17 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode zstd gzip
+
+	# Only /api is forwarded to the backend. Health and any other management path stay unreachable from outside.
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

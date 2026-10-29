@@ -1,7 +1,7 @@
 
 package com.appointment.api.services.mapper;
 
-import com.appointment.api.customers.CustomerType;
+import com.appointment.api.users.CustomerType;
 import com.appointment.api.services.dao.Service;
 import com.appointment.api.services.dto.ServiceResponse;
 import org.springframework.stereotype.Component;

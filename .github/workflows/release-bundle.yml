@@ -1,0 +1,45 @@
+name: Release Deploy Bundle
+
+# Pushing a tag such as v1.0.0 publishes appointment-system.zip, the one-click bundle for non-technical operators.
+# The bundle pulls the prebuilt images, so tag after the API and UI images have been published.
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Package bundle
+        run: |
+          mkdir appointment-system
+          cp -R deploy/. appointment-system/
+          rm -f appointment-system/app/.gitignore
+
+          # Windows scripts need CRLF, everything that runs in Linux or macOS needs LF, whatever the checkout did.
+          sed -i 's/\r$//' appointment-system/*.command appointment-system/app/*.sh appointment-system/app/Caddyfile appointment-system/app/docker-compose.yml
+          sed -i 's/\r*$/\r/' appointment-system/*.bat appointment-system/app/*.bat appointment-system/README.txt
+
+          chmod +x appointment-system/*.command appointment-system/app/*.sh
+          zip -r -X appointment-system.zip appointment-system
+
+      - name: Check bundle contents
+        run: |
+          test "$(unzip -Z appointment-system.zip | grep -E '(Start|Manage)\.command|run\.sh|setup\.sh' | grep -c -- '-rwxr-xr-x')" -eq 4
+          unzip -l appointment-system.zip
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" appointment-system.zip \
+            --title "Appointment System $GITHUB_REF_NAME" \
+            --generate-notes

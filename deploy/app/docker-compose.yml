@@ -1,0 +1,80 @@
+name: appointment-system
+
+# Everything here runs from prebuilt images. Settings come from the .env file that setup.sh creates.
+# Only the gateway is reachable from outside; the database and the API stay on the internal network.
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    # The official PostGIS image has no arm64 build; Docker emulates it on Apple Silicon.
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: bank_appointments
+      POSTGRES_USER: ${DB_USERNAME:?Settings are missing. Run Start so the setup can create them.}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Settings are missing. Run Start so the setup can create them.}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
+    image: ${API_IMAGE:-nqobani000/appointment-booking-system-nqobani000:latest}
+    environment:
+      DB_HOST: db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Settings are missing. Run Start so the setup can create them.}
+      NOTIFICATIONS_SENDER: smtp
+      MAIL_HOST: ${MAIL_HOST:?Email settings are missing. Run Manage, then choose Change email settings.}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:?Email settings are missing. Run Manage, then choose Change email settings.}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?Email settings are missing. Run Manage, then choose Change email settings.}
+      MAIL_FROM: ${MAIL_FROM:?Email settings are missing. Run Manage, then choose Change email settings.}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:${APP_PORT:-8080}}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+    restart: unless-stopped
+
+  web:
+    image: ${WEB_IMAGE:-nqobani000/appointment-booking-ui:latest}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  gateway:
+    image: caddy:2-alpine
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

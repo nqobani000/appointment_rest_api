@@ -1,4 +1,4 @@
-package com.appointment.api.customers;
+package com.appointment.api.users;
 
 public enum CustomerType {
     CLIENT,

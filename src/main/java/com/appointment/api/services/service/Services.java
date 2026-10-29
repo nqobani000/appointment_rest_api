@@ -16,6 +16,15 @@ public interface Services {
     ServiceResponsePage getAllActiveServices(ServiceSearchCriteria criteria, Pageable pageable);
 
     /**
+     * Retrieves a paginated list of active services for a specific branch based on the provided criteria.
+     * @param branchId the ID of the branch
+     * @param criteria the criteria to filter services
+     * @param pageable the pagination information
+     * @return a paginated response of active services for the specified branch
+     */
+    ServiceResponsePage getAllActiveServicesByBranchId(String branchId, ServiceSearchCriteria criteria, Pageable pageable);
+
+    /**
      * Retrieves an active service by its ID.
      *
      * @param serviceId the ID of the service

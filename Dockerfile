@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jdk AS build
+FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk AS build
 WORKDIR /workspace
 
 COPY gradlew settings.gradle build.gradle ./
@@ -16,4 +16,7 @@ RUN useradd --system --no-create-home appuser
 COPY --from=build /workspace/app.jar app.jar
 USER appuser
 EXPOSE 8080
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+HEALTHCHECK --interval=10s --timeout=5s --start-period=90s --retries=10 \
+    CMD curl -fsS http://localhost:8080/actuator/health/readiness || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]

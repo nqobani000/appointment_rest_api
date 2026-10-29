@@ -1,9 +1,10 @@
 package com.appointment.api.services.service;
 
+import com.appointment.api.branches.repository.BranchRepository;
 import com.appointment.api.cache.CacheNames;
 import org.springframework.cache.annotation.Cacheable;
 import com.appointment.api.exceptions.InvalidArgumentException;
-import com.appointment.api.exceptions.ServiceNotFoundException;
+import com.appointment.api.exceptions.ResourceNotFoundException;
 import com.appointment.api.services.dto.ServiceResponse;
 import com.appointment.api.services.dto.ServiceResponsePage;
 import com.appointment.api.services.dto.ServiceSearchCriteria;
@@ -26,6 +27,7 @@ public class ServicesImpl implements Services {
 
     private final ServicesRepository servicesRepository;
     private final ServiceMapper serviceMapper;
+    private final BranchRepository branchRepository;
 
 
     @Override
@@ -40,7 +42,25 @@ public class ServicesImpl implements Services {
 
         Page<com.appointment.api.services.dao.Service> activeServices = servicesRepository.findActiveServices(filter, pageable);
 
-        LinkedHashMap<String, List<ServiceResponse>> groupedServices = activeServices
+        return toPage(activeServices);
+    }
+
+    @Override
+    @Cacheable(
+            cacheNames = CacheNames.BRANCH_SERVICES,
+            key = "@serviceCacheKeys.branchListKey(#branchId, #criteria, #pageable)",
+            condition = "@serviceCacheKeys.isCacheable(#criteria, #pageable)"
+    )
+    public ServiceResponsePage getAllActiveServicesByBranchId(String branchId, ServiceSearchCriteria criteria, Pageable pageable) {
+        UUID id = resolveUUID(branchId, "branch");
+        if (!branchRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Branch", id);
+        }
+        return toPage(servicesRepository.findActiveServicesByBranchId(id, getFilter(criteria), pageable));
+    }
+
+    private ServiceResponsePage toPage(Page<com.appointment.api.services.dao.Service> page) {
+        LinkedHashMap<String, List<ServiceResponse>> groupedServices = page
                 .getContent()
                 .stream()
                 .map(serviceMapper::toResponse)
@@ -52,12 +72,12 @@ public class ServicesImpl implements Services {
 
         return new ServiceResponsePage(
                 groupedServices,
-                activeServices.getNumber(),
-                activeServices.getSize(),
-                activeServices.getTotalElements(),
-                activeServices.getTotalPages(),
-                activeServices.isFirst(),
-                activeServices.isLast()
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
         );
     }
 
@@ -67,18 +87,18 @@ public class ServicesImpl implements Services {
             key = "#serviceId"
     )
     public ServiceResponse getActiveServiceById(String serviceId) {
-        UUID id = resolveUUID(serviceId);
+        UUID id = resolveUUID(serviceId, "service");
         return servicesRepository.findActiveServiceById(id)
                 .map(serviceMapper::toResponse)
-                .orElseThrow(() -> new ServiceNotFoundException(id));
+                .orElseThrow(() -> new ResourceNotFoundException("Active service", id));
     }
 
-    private static @NonNull UUID resolveUUID(String serviceId) {
+    private static @NonNull UUID resolveUUID(String value, String label) {
         UUID id;
         try {
-            id = UUID.fromString(serviceId);
+            id = UUID.fromString(value);
         } catch (IllegalArgumentException exception) {
-            throw new InvalidArgumentException("Invalid service ID: " + serviceId, exception);
+            throw new InvalidArgumentException("Invalid " + label + " ID: " + value, exception);
         }
         return id;
     }

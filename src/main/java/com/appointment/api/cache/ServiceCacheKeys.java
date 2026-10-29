@@ -16,6 +16,10 @@ public class ServiceCacheKeys {
         return support.pageKey(support.normalize(search(criteria)), pageable) + "|" + pageable.getSort();
     }
 
+    public String branchListKey(String branchId, ServiceSearchCriteria criteria, Pageable pageable) {
+        return support.normalize(branchId) + "|" + listKey(criteria, pageable);
+    }
+
     public boolean isCacheable(ServiceSearchCriteria criteria, Pageable pageable) {
         return support.withinBounds(support.normalize(search(criteria)), pageable);
     }
